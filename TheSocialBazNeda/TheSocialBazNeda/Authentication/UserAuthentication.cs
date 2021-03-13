@@ -12,7 +12,6 @@ namespace TheSocialBazNeda.Authentication
         public static string Username { get; set; } = null;
         public string[] GetUserLoginInfo(HttpRequestHeaders headersInput) {
             HttpRequestHeaders headers = headersInput;
-            string[] usernamePassword = null;
             if (!headers.Contains("Authorization"))
             {
                 return null;
@@ -20,12 +19,14 @@ namespace TheSocialBazNeda.Authentication
             else
             {
                 string authenticationToken = headers.Authorization.Parameter;
+                string[] usernamePassword;
                 try
                 {
                     string decodedAUthenticationToken = Encoding.UTF8.GetString(Convert.FromBase64String(authenticationToken));
                     usernamePassword = decodedAUthenticationToken.Split(':');
                 }
-                catch (Exception ex) {
+                catch (Exception ex)
+                {
                     return null;
                 }
                 return usernamePassword;

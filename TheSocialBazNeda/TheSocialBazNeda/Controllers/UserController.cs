@@ -22,7 +22,7 @@ namespace TheSocialBazNeda.Controllers
             MessageDisplay messageDisplay = new MessageDisplay();
             HttpRequestHeaders headers = Request.Headers;
 
-            string [] userinfo = authentication.GetUserLoginInfo(headers);
+            string[] userinfo = authentication.GetUserLoginInfo(headers);
             if (userinfo == null)
             {
                 return Content(HttpStatusCode.Unauthorized, messageDisplay.Message(HttpStatusCode.Unauthorized, "The Base64 encoded message in AUthorization header is not in correct format!"));
@@ -43,7 +43,7 @@ namespace TheSocialBazNeda.Controllers
                 return Content(HttpStatusCode.OK, messageDisplay.Message(HttpStatusCode.OK, "The user is logged in successfully!"));
             }
             else {
-                return Content(HttpStatusCode.Unauthorized, messageDisplay.Message(HttpStatusCode.Unauthorized, "The user authentiaction failed!")); 
+                return Content(HttpStatusCode.Unauthorized, messageDisplay.Message(HttpStatusCode.Unauthorized, "The user authentiaction failed!"));
             }
         }
 
@@ -60,9 +60,11 @@ namespace TheSocialBazNeda.Controllers
             SqlCommand sqlCommandID = new SqlCommand(queryID, sqlConnection);
             SqlDataReader sdrID = sqlCommandID.ExecuteReader();
 
-            if (!sdrID.HasRows)
+            if (!sdrID.HasRows && UserAuthentication.Username == null)
             {
-                return Content(HttpStatusCode.NotFound, messageDisplay.Message(HttpStatusCode.NotFound, "The user is not an existing user!"));
+                return Content(HttpStatusCode.Forbidden, messageDisplay.Message(HttpStatusCode.Forbidden, "You are not authorized to see this data!"));
+            } else if (!sdrID.HasRows && UserAuthentication.Username != null) {
+                return Content(HttpStatusCode.NoContent, messageDisplay.Message(HttpStatusCode.NoContent, "There are no available users to serach for!"));
             }
             else if (sdrID.Read())
             {
@@ -91,7 +93,7 @@ namespace TheSocialBazNeda.Controllers
                 }
                 sdrSearch.Close();
             }
-            else 
+            else
             {
                 sqlConnection.Close();
                 return Content(HttpStatusCode.BadRequest, messageDisplay.Message(HttpStatusCode.BadRequest, "There was an issue executing the request!"));
