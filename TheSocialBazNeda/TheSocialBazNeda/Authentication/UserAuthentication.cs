@@ -9,6 +9,7 @@ namespace TheSocialBazNeda.Authentication
 {
     public class UserAuthentication
     {
+        public static string Username { get; set; } = null;
         public string[] GetUserLoginInfo(HttpRequestHeaders headersInput) {
             HttpRequestHeaders headers = headersInput;
             string[] usernamePassword = null;

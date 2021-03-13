@@ -15,7 +15,6 @@ namespace TheSocialBazNeda.Controllers
 {
     public class UserController : ApiController
     {
-        public static string username;
         [Route("api/user/login")]
         [HttpGet]
         public IHttpActionResult LoginUser() {
@@ -26,7 +25,7 @@ namespace TheSocialBazNeda.Controllers
             string [] userinfo = authentication.GetUserLoginInfo(headers);
             if (userinfo == null)
             {
-                return Content(HttpStatusCode.Unauthorized, messageDisplay.Message(HttpStatusCode.Unauthorized, "The Authorization header is incorrect!"));
+                return Content(HttpStatusCode.Unauthorized, messageDisplay.Message(HttpStatusCode.Unauthorized, "The Base64 encoded message in AUthorization header is not in correct format!"));
             }
 
             string mainconn = ConfigurationManager.ConnectionStrings["TheSocialBaz"].ConnectionString;
@@ -40,7 +39,7 @@ namespace TheSocialBazNeda.Controllers
             if (sdr.HasRows)
             {
                 Thread.CurrentPrincipal = new GenericPrincipal(new GenericIdentity(userinfo[0]), null);
-                username = Thread.CurrentPrincipal.Identity.Name;
+                UserAuthentication.Username = Thread.CurrentPrincipal.Identity.Name;
                 return Content(HttpStatusCode.OK, messageDisplay.Message(HttpStatusCode.OK, "The user is logged in successfully!"));
             }
             else {
@@ -57,7 +56,7 @@ namespace TheSocialBazNeda.Controllers
             string mainconn = ConfigurationManager.ConnectionStrings["TheSocialBaz"].ConnectionString;
             SqlConnection sqlConnection = new SqlConnection(mainconn);
             sqlConnection.Open();
-            string queryID = "select userID from dbo.[user] usr where userUsername = " + "'" + username + "'";
+            string queryID = "select userID from dbo.[user] usr where userUsername = " + "'" + UserAuthentication.Username + "'";
             SqlCommand sqlCommandID = new SqlCommand(queryID, sqlConnection);
             SqlDataReader sdrID = sqlCommandID.ExecuteReader();
 
@@ -150,7 +149,7 @@ namespace TheSocialBazNeda.Controllers
             }
             else if (sdr.Read())
             {
-                if (sdr.GetValue(0).ToString().Equals(username) || username.Equals("admin"))
+                if (sdr.GetValue(0).ToString().Equals(UserAuthentication.Username) || UserAuthentication.Username.Equals("admin"))
                 {
                     sdr.Close();
                     string queryDelete = "delete from [dbo].[user] where userID = " + id;
@@ -190,7 +189,7 @@ namespace TheSocialBazNeda.Controllers
             }
             else if (sdr.Read())
             {
-                if (sdr.GetValue(0).ToString().Equals(username))
+                if (sdr.GetValue(0).ToString().Equals(UserAuthentication.Username))
                 {
                     sdr.Close();
                     string queryupdate = "update [dbo].[user]  set userUsername = @userUsername, userName = @userName, userSurname = @userSurname, " +
@@ -266,7 +265,7 @@ namespace TheSocialBazNeda.Controllers
             sqlCommandInsert.Parameters.AddWithValue("@userMobile", user.userMobile);
             sqlCommandInsert.Parameters.AddWithValue("@userPassword", user.userPassword);
 
-            if (username == null)
+            if (UserAuthentication.Username == null)
             {
                 try
                 {
