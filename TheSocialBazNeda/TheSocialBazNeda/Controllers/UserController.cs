@@ -10,6 +10,7 @@ using TheSocialBazNeda.Authentication;
 using TheSocialBazNeda.MessageOutput;
 using System.Threading;
 using System.Security.Principal;
+using Newtonsoft.Json.Linq;
 
 namespace TheSocialBazNeda.Controllers
 {
@@ -102,6 +103,7 @@ namespace TheSocialBazNeda.Controllers
             return Ok(users);
         }
 
+
         [Route("api/user/{id}")]
         [HttpGet]
         public IHttpActionResult GetUser(int id)
@@ -133,12 +135,72 @@ namespace TheSocialBazNeda.Controllers
             return Ok(user);
         }
 
+        [Route("api/user/block/{id}")]
+        [HttpGet]
+        public IHttpActionResult BlockUser(int id)
+        {
+            MessageDisplay messageDisplay = new MessageDisplay();
+            string mainconn = ConfigurationManager.ConnectionStrings["TheSocialBaz"].ConnectionString;
+            SqlConnection sqlConnection = new SqlConnection(mainconn);
+            sqlConnection.Open();
+            string queryID = "select userID from [dbo].[user] where userUsername = " + "'" + UserAuthentication.Username + "'";
+            SqlCommand sqlCommand = new SqlCommand(queryID, sqlConnection);
+            SqlDataReader sdrUserID = sqlCommand.ExecuteReader();
+
+            if (!sdrUserID.HasRows)
+            {
+                return Content(HttpStatusCode.Forbidden, messageDisplay.Message(HttpStatusCode.Forbidden, "You are not authorized!"));
+            }
+            else {
+                string queryInsert = null;
+                while (sdrUserID.Read()) {
+                     queryInsert = "insert into [dbo].[blockedUsers] (userID, blockedUserID)" +
+                                        " values (" + Convert.ToInt32(sdrUserID.GetValue(0)) + ", " + id + ")";
+                }
+                sdrUserID.Close();
+                SqlCommand sqlCommandInsertBlockedUser = new SqlCommand(queryInsert, sqlConnection);
+                sqlCommandInsertBlockedUser.ExecuteNonQuery();
+                sqlConnection.Close();
+                return Content(HttpStatusCode.OK, messageDisplay.Message(HttpStatusCode.OK, "You have successfully blocked this user"));
+            }
+        }
+
+        [Route("api/user/block/{id}")]
+        [HttpDelete]
+        public IHttpActionResult UnblockUser(int id)
+        {
+            MessageDisplay messageDisplay = new MessageDisplay();
+            string mainconn = ConfigurationManager.ConnectionStrings["TheSocialBaz"].ConnectionString;
+            SqlConnection sqlConnection = new SqlConnection(mainconn);
+            sqlConnection.Open();
+            string queryID = "select userID from [dbo].[user] where userUsername = " + "'" + UserAuthentication.Username + "'";
+            SqlCommand sqlCommand = new SqlCommand(queryID, sqlConnection);
+            SqlDataReader sdrID = sqlCommand.ExecuteReader();
+
+            if (!sdrID.HasRows)
+            {
+                return Content(HttpStatusCode.Forbidden, messageDisplay.Message(HttpStatusCode.Forbidden, "You are not authorized!"));
+            }
+            else
+            {
+                string queryDelete = null;
+                while (sdrID.Read())
+                {
+                    queryDelete = "delete from [dbo].[blockedUsers] where userID = " + Convert.ToInt32(sdrID.GetValue(0)) + " and blockedUserID = " + id;
+                }
+                sdrID.Close();
+                SqlCommand sqlCommandInsert = new SqlCommand(queryDelete, sqlConnection);
+                sqlCommandInsert.ExecuteNonQuery();
+                sqlConnection.Close();
+                return Content(HttpStatusCode.OK, messageDisplay.Message(HttpStatusCode.OK, "You have successfully unblocked this user"));
+            }
+        }
+
         [Route("api/user/{id}")]
         [HttpDelete]
         public IHttpActionResult DeleteUser(int id)
         {
             MessageDisplay messageDisplay = new MessageDisplay();
-            List<UserModel> user = new List<UserModel>();
             string mainconn = ConfigurationManager.ConnectionStrings["TheSocialBaz"].ConnectionString;
             SqlConnection sqlConnection = new SqlConnection(mainconn);
             sqlConnection.Open();
@@ -249,13 +311,16 @@ namespace TheSocialBazNeda.Controllers
 
         [Route("api/user/register")]
         [HttpPost]
-        public IHttpActionResult RegisterUser(UserModel user)
+        public IHttpActionResult RegisterUser([FromBody]JObject data)
         {
             MessageDisplay messageDisplay = new MessageDisplay();
+            AccountController accountController = new AccountController();
+            UserModel user = data["user"].ToObject<UserModel>();
+            CorporateAccountModel corporateAccountModel = data["corporateAccount"]?.ToObject<CorporateAccountModel>();
             string mainconn = ConfigurationManager.ConnectionStrings["TheSocialBaz"].ConnectionString;
             SqlConnection sqlConnection = new SqlConnection(mainconn);
-            string queryInsert = "insert into [dbo].[user] (userUsername, userName, userSurname, userEmail, userAddress, userCity, userMobile, userPassword)" +
-                    " values (@userUsername, @userName, @userSurname, @userEmail, @userAddress, @userCity, @userMobile, @userPassword)";
+            string queryInsert = "insert into [dbo].[user] (userUsername, userName, userSurname, userEmail, userAddress, userCity, userMobile, userPassword, isPersonal)" +
+                    " values (@userUsername, @userName, @userSurname, @userEmail, @userAddress, @userCity, @userMobile, @userPassword, @isPersonal)";
             SqlCommand sqlCommandInsert = new SqlCommand(queryInsert, sqlConnection);
             sqlConnection.Open();
             sqlCommandInsert.Parameters.AddWithValue("@userUsername", user.userUsername);
@@ -266,12 +331,38 @@ namespace TheSocialBazNeda.Controllers
             sqlCommandInsert.Parameters.AddWithValue("@userCity", user.userCity);
             sqlCommandInsert.Parameters.AddWithValue("@userMobile", user.userMobile);
             sqlCommandInsert.Parameters.AddWithValue("@userPassword", user.userPassword);
+            sqlCommandInsert.Parameters.AddWithValue("@isPersonal", user.isPersonal);
 
             if (UserAuthentication.Username == null)
             {
                 try
                 {
+                    int result = 0;
                     sqlCommandInsert.ExecuteNonQuery();
+                    if (user.isPersonal == 0)
+                    {
+                        string queryID = "select userID from [dbo].[user] where userUsername = " + "'" + user.userUsername + "'";
+                        SqlCommand sqlCommand = new SqlCommand(queryID, sqlConnection);
+                        SqlDataReader sdrID = sqlCommand.ExecuteReader();
+                        while (sdrID.Read())
+                        {
+                            result = accountController.CreateCorporateAccount(Convert.ToInt32(sdrID.GetValue(0)), corporateAccountModel);
+                            sdrID.Close();
+                        }
+                    }
+                    if (result == 1) {
+                        return Content(HttpStatusCode.Forbidden, messageDisplay.Message(HttpStatusCode.Forbidden, "The company's PIB must have 11 charachters!"));
+                    } else if (result == 2){
+                        return Content(HttpStatusCode.Forbidden, messageDisplay.Message(HttpStatusCode.Forbidden, "The company's mobile phone is in incorrect format!"));
+                    } else if (result == 3){
+                        return Content(HttpStatusCode.Forbidden, messageDisplay.Message(HttpStatusCode.Forbidden, "The company's email is incorrect format!"));
+                    } else if (result == 4){
+                        return Content(HttpStatusCode.Forbidden, messageDisplay.Message(HttpStatusCode.Forbidden, "The company's PIB must be unique!"));
+                    } else if (result == 5){
+                        return Content(HttpStatusCode.Forbidden, messageDisplay.Message(HttpStatusCode.Forbidden, "The company's email must be unique!"));
+                    } else if (result == 6){
+                        return Content(HttpStatusCode.Forbidden, messageDisplay.Message(HttpStatusCode.Forbidden, "The company's mobile must be unique!"));
+                    }
                 }
                 catch (Exception ex)
                 {

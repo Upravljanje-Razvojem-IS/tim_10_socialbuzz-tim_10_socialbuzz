@@ -16,5 +16,6 @@ namespace TheSocialBazNeda.Models
         public string userCity { get; set; }
         public string userMobile { get; set; }
         public string userPassword { get; set; }
+        public int isPersonal { get; set; }
     }
 }
