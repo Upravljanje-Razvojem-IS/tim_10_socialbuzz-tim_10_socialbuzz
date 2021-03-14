@@ -48,6 +48,22 @@ namespace TheSocialBazNeda.Controllers
             }
         }
 
+        [Route("api/user/logout")]
+        [HttpGet]
+        public IHttpActionResult LogoutUser()
+        {
+            MessageDisplay messageDisplay = new MessageDisplay();
+            if (UserAuthentication.Username != null)
+            {
+                UserAuthentication.Username = null;
+                return Content(HttpStatusCode.OK, messageDisplay.Message(HttpStatusCode.OK, "The user is logged out successfully!"));
+            }
+            else {
+                return Content(HttpStatusCode.BadRequest, messageDisplay.Message(HttpStatusCode.BadRequest, "You cannot logout before logging in!"));
+            }
+            
+        }
+
         [Route("api/user/search")]
         [HttpGet]
         public IHttpActionResult SearchUsers()
@@ -290,7 +306,7 @@ namespace TheSocialBazNeda.Controllers
                         {
                             return Content(HttpStatusCode.Forbidden, messageDisplay.Message(HttpStatusCode.Forbidden, "The email is incorrect format! It musy be in the format example@example.com"));
                         }
-                        else if (ex.Message.Contains("chk_user_email"))
+                        else if (ex.Message.Contains("chk_mobile_user_constraint"))
                         {
                             return Content(HttpStatusCode.Forbidden, messageDisplay.Message(HttpStatusCode.Forbidden, "The mobile phone number is incorrect format! It can only contain numbers"));
                         }
