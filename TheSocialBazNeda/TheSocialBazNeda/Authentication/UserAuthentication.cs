@@ -10,6 +10,7 @@ namespace TheSocialBazNeda.Authentication
     public class UserAuthentication
     {
         public static string Username { get; set; } = null;
+        public static string Role { get; set; } = null;
         public string[] GetUserLoginInfo(HttpRequestHeaders headersInput) {
             HttpRequestHeaders headers = headersInput;
             if (!headers.Contains("Authorization"))

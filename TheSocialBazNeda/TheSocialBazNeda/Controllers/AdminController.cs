@@ -19,7 +19,7 @@ namespace TheSocialBazNeda.Controllers
     {
         [Route("api/admin/login")]
         [HttpGet]
-        public IHttpActionResult LoginAdmin()
+        public IHttpActionResult LoginAdmininstrator()
         {
             UserAuthentication authentication = new UserAuthentication();
             MessageDisplay messageDisplay = new MessageDisplay();
@@ -28,7 +28,7 @@ namespace TheSocialBazNeda.Controllers
             string[] userinfo = authentication.GetUserLoginInfo(headers);
             if (userinfo == null)
             {
-                return Content(HttpStatusCode.Unauthorized, messageDisplay.Message(HttpStatusCode.Unauthorized, "The Base64 encoded message in AUthorization header is not in correct format!"));
+                return Content(HttpStatusCode.Unauthorized, messageDisplay.Message(HttpStatusCode.Unauthorized, "The Base64 encoded message in Authorization header is not in correct format!"));
             }
 
             string mainconn = ConfigurationManager.ConnectionStrings["TheSocialBaz"].ConnectionString;
@@ -43,6 +43,7 @@ namespace TheSocialBazNeda.Controllers
             {
                 Thread.CurrentPrincipal = new GenericPrincipal(new GenericIdentity(userinfo[0]), null);
                 UserAuthentication.Username = Thread.CurrentPrincipal.Identity.Name;
+                UserAuthentication.Role = "admin";
                 return Content(HttpStatusCode.OK, messageDisplay.Message(HttpStatusCode.OK, "The admin is logged in successfully!"));
             }
             else
@@ -53,7 +54,7 @@ namespace TheSocialBazNeda.Controllers
 
         [Route("api/admin/{id}")]
         [HttpPut]
-        public IHttpActionResult UpdateAdmin(int id, AdministratorModel admin)
+        public IHttpActionResult UpdateAdmininstrator(int id, AdministratorModel admin)
         {
             MessageDisplay messageDisplay = new MessageDisplay();
             string mainconn = ConfigurationManager.ConnectionStrings["TheSocialBaz"].ConnectionString;
@@ -117,7 +118,7 @@ namespace TheSocialBazNeda.Controllers
 
         [Route("api/admin/register")]
         [HttpPost]
-        public IHttpActionResult RegisterUser(AdministratorModel admin)
+        public IHttpActionResult RegisterAdministrator(AdministratorModel admin)
         {
             MessageDisplay messageDisplay = new MessageDisplay();
             AccountController accountController = new AccountController();
@@ -161,7 +162,28 @@ namespace TheSocialBazNeda.Controllers
             {
                 return Content(HttpStatusCode.Forbidden, messageDisplay.Message(HttpStatusCode.Forbidden, "You are already signed in as another admin!"));
             }
+        }
 
+        [Route("api/admin/user/{id}")]
+        [HttpDelete]
+        public IHttpActionResult DeleteUser(int id)
+        {
+            MessageDisplay messageDisplay = new MessageDisplay();
+            string mainconn = ConfigurationManager.ConnectionStrings["TheSocialBaz"].ConnectionString;
+            SqlConnection sqlConnection = new SqlConnection(mainconn);
+            sqlConnection.Open();
+            if (UserAuthentication.Role == "admin") {
+                string queryDelete = "delete from [dbo].[user] where userID = " + id;
+                SqlCommand sqlCommandDelete = new SqlCommand(queryDelete, sqlConnection);
+                SqlDataReader sdrDelete = sqlCommandDelete.ExecuteReader();
+                if (!sdrDelete.HasRows)
+                {
+                    return Content(HttpStatusCode.NotFound, messageDisplay.Message(HttpStatusCode.NotFound, "The user could not be found!"));
+                }
+                sdrDelete.Close();
+            }
+            sqlConnection.Close();
+            return Content(HttpStatusCode.OK, messageDisplay.Message(HttpStatusCode.OK, "You have successfully deleted an account!"));
         }
     }
 }

@@ -11,6 +11,8 @@ using TheSocialBazNeda.MessageOutput;
 using System.Threading;
 using System.Security.Principal;
 using Newtonsoft.Json.Linq;
+using System.Net.Mail;
+using System.Text;
 
 namespace TheSocialBazNeda.Controllers
 {
@@ -41,6 +43,7 @@ namespace TheSocialBazNeda.Controllers
             {
                 Thread.CurrentPrincipal = new GenericPrincipal(new GenericIdentity(userinfo[0]), null);
                 UserAuthentication.Username = Thread.CurrentPrincipal.Identity.Name;
+                UserAuthentication.Role = "user";
                 return Content(HttpStatusCode.OK, messageDisplay.Message(HttpStatusCode.OK, "The user is logged in successfully!"));
             }
             else {
@@ -56,6 +59,7 @@ namespace TheSocialBazNeda.Controllers
             if (UserAuthentication.Username != null)
             {
                 UserAuthentication.Username = null;
+                UserAuthentication.Role = null;
                 return Content(HttpStatusCode.OK, messageDisplay.Message(HttpStatusCode.OK, "The user is logged out successfully!"));
             }
             else {
@@ -229,7 +233,7 @@ namespace TheSocialBazNeda.Controllers
             }
             else if (sdr.Read())
             {
-                if (sdr.GetValue(0).ToString().Equals(UserAuthentication.Username) || UserAuthentication.Username.Equals("admin"))
+                if (sdr.GetValue(0).ToString().Equals(UserAuthentication.Username) || UserAuthentication.Role.Equals("user"))
                 {
                     sdr.Close();
                     string queryDelete = "delete from [dbo].[user] where userID = " + id;
@@ -410,6 +414,56 @@ namespace TheSocialBazNeda.Controllers
                 return Content(HttpStatusCode.Forbidden, messageDisplay.Message(HttpStatusCode.Forbidden, "You are already signed in as another user!"));
             }
 
+        }
+
+        [HttpPatch]
+        [Route("api/user/resetpassword/{userUserName}")]
+        public IHttpActionResult ResetPassword(string userUserName)
+        {
+            string newPassword = Convert.ToBase64String(Guid.NewGuid().ToByteArray()).Substring(0, 8);
+            MessageDisplay messageDisplay = new MessageDisplay();
+            string mainconn = ConfigurationManager.ConnectionStrings["TheSocialBaz"].ConnectionString;
+            SqlConnection sqlConnection = new SqlConnection(mainconn);
+            sqlConnection.Open();
+            string query = "select userName, userSurname, userEmail from [dbo].[user] where userUserName = " + "'" + userUserName + "'";
+            SqlCommand sqlCommand = new SqlCommand(query, sqlConnection);
+            SqlDataReader sdr = sqlCommand.ExecuteReader();
+
+            if (!sdr.HasRows)
+            {
+                return Content(HttpStatusCode.NotFound, messageDisplay.Message(HttpStatusCode.NotFound, "The user is not an existing user!"));
+            }
+            else if (sdr.Read() && UserAuthentication.Username == null)
+            {
+                string emailTo = sdr.GetValue(2).ToString();
+                SmtpClient client = new SmtpClient("smtp.gmail.com", 587);
+                client.EnableSsl = true;
+                client.Timeout = 10000;
+                client.DeliveryMethod = SmtpDeliveryMethod.Network;
+                client.UseDefaultCredentials = false;
+                client.Credentials = new NetworkCredential("radibratovic.n@gmail.com", Encoding.UTF8.GetString(Convert.FromBase64String("bmVkYW1lamw5OSs=")));
+
+                MailMessage mail = new MailMessage();
+                mail.To.Add(emailTo);
+                mail.From = new MailAddress("radibratovic.n@gmail.com");
+                mail.Subject = "Password Reset";
+                mail.Body = "Dear " + sdr.GetValue(0).ToString() + " " + sdr.GetValue(1).ToString() + ", \n" +
+                    "We have received an email that you have forgotten your password. If you didn't send this, please ignore this message. \n" +
+                    "You're can sign in with your new password: " + newPassword + "\n" +
+                    "\n Kind Regards, \n TheSocialBaz team";
+
+                client.Send(mail);
+            }
+            else {
+                sqlConnection.Close();
+                return Content(HttpStatusCode.BadRequest, messageDisplay.Message(HttpStatusCode.BadRequest, "There was an issue executing the request!"));
+            }
+            sdr.Close();
+            string queryupdate = "update [dbo].[user] set userPassword = @userPassword where userUserName = " + "'" + userUserName + "'";
+            SqlCommand sqlCommandUpdate = new SqlCommand(queryupdate, sqlConnection);
+            sqlCommandUpdate.Parameters.AddWithValue("@userPassword", newPassword);
+            sqlCommandUpdate.ExecuteNonQuery();
+            return Content(HttpStatusCode.Created, messageDisplay.Message(HttpStatusCode.Created, "The you successfully requsted new password!"));
         }
     }
 }

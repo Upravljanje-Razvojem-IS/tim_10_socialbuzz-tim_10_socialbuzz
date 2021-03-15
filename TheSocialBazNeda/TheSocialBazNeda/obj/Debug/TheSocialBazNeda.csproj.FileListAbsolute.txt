@@ -174,3 +174,4 @@ C:\Users\Luka\source\repos\tim_10_socialbuzz-tim_10_socialbuzz\TheSocialBazNeda\
 C:\Users\Luka\source\repos\tim_10_socialbuzz-tim_10_socialbuzz\TheSocialBazNeda\TheSocialBazNeda\obj\Debug\TheSocialBazNeda.csproj.CopyComplete
 C:\Users\Luka\source\repos\tim_10_socialbuzz-tim_10_socialbuzz\TheSocialBazNeda\TheSocialBazNeda\obj\Debug\TheSocialBazNeda.dll
 C:\Users\Luka\source\repos\tim_10_socialbuzz-tim_10_socialbuzz\TheSocialBazNeda\TheSocialBazNeda\obj\Debug\TheSocialBazNeda.pdb
+C:\Users\Luka\source\repos\tim_10_socialbuzz-tim_10_socialbuzz\TheSocialBazNeda\TheSocialBazNeda\bin\microsoft.identitymodel.dll
