@@ -6,7 +6,9 @@ using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
+using System.Net.Mail;
 using System.Security.Principal;
+using System.Text;
 using System.Threading;
 using System.Web.Http;
 using TheSocialBazNeda.Authentication;
@@ -44,6 +46,7 @@ namespace TheSocialBazNeda.Controllers
                 Thread.CurrentPrincipal = new GenericPrincipal(new GenericIdentity(userinfo[0]), null);
                 UserAuthentication.Username = Thread.CurrentPrincipal.Identity.Name;
                 UserAuthentication.Role = "admin";
+
                 return Content(HttpStatusCode.OK, messageDisplay.Message(HttpStatusCode.OK, "The admin is logged in successfully!"));
             }
             else
@@ -173,17 +176,39 @@ namespace TheSocialBazNeda.Controllers
             SqlConnection sqlConnection = new SqlConnection(mainconn);
             sqlConnection.Open();
             if (UserAuthentication.Role == "admin") {
+                string querySelect = "select userName, userSurname, userEmail, userMobile from [dbo].[user] where userID = " + id;
+                SqlCommand sqlCommandSelect = new SqlCommand(querySelect, sqlConnection);
+                SqlDataReader sdrSelect = sqlCommandSelect.ExecuteReader();
+                while (sdrSelect.Read()) {
+                    SmtpClient client = new SmtpClient("smtp.gmail.com", 587);
+                    client.EnableSsl = true;
+                    client.Timeout = 10000;
+                    client.DeliveryMethod = SmtpDeliveryMethod.Network;
+                    client.UseDefaultCredentials = false;
+                    client.Credentials = new NetworkCredential("radibratovic.n@gmail.com", Encoding.UTF8.GetString(Convert.FromBase64String("bmVkYW1lamw5OSs=")));
+
+                    MailMessage mail = new MailMessage();
+                    mail.To.Add(sdrSelect.GetValue(2).ToString());
+                    mail.From = new MailAddress("radibratovic.n@gmail.com");
+                    mail.Subject = "Deactivation of the account";
+                    mail.Body = "Dear " + sdrSelect.GetValue(0).ToString() + " " + sdrSelect.GetValue(1).ToString() + ", \n" +
+                        "Due to the violation of the rules of TheSocialBaz application you have been banned from our site. \n" +
+                        "You will no longer be able to login nor register with this email address and mobile \n" +
+                        "\n Kind Regards, \n TheSocialBaz team";
+
+                    client.Send(mail);
+                }
+                sdrSelect.Close();
+
                 string queryDelete = "delete from [dbo].[user] where userID = " + id;
                 SqlCommand sqlCommandDelete = new SqlCommand(queryDelete, sqlConnection);
                 SqlDataReader sdrDelete = sqlCommandDelete.ExecuteReader();
-                if (!sdrDelete.HasRows)
-                {
-                    return Content(HttpStatusCode.NotFound, messageDisplay.Message(HttpStatusCode.NotFound, "The user could not be found!"));
-                }
                 sdrDelete.Close();
+
+                sqlConnection.Close();
+                return Content(HttpStatusCode.OK, messageDisplay.Message(HttpStatusCode.OK, "You have successfully deleted an account!"));
             }
-            sqlConnection.Close();
-            return Content(HttpStatusCode.OK, messageDisplay.Message(HttpStatusCode.OK, "You have successfully deleted an account!"));
+            return Content(HttpStatusCode.Unauthorized, messageDisplay.Message(HttpStatusCode.Unauthorized, "You are not authorized to delete an account!"));
         }
     }
 }

@@ -34,7 +34,7 @@ namespace TheSocialBazNeda.Controllers
             string mainconn = ConfigurationManager.ConnectionStrings["TheSocialBaz"].ConnectionString;
             SqlConnection sqlConnection = new SqlConnection(mainconn);
             sqlConnection.Open();
-            string query = "select * from [dbo].[user] where (userEmail = '" + userinfo[0] + "' or userUsername = '" + userinfo[0] + "') and userPassword =" + "'" + userinfo[1] + "'";
+            string query = "select userEmail from [dbo].[user] where (userEmail = '" + userinfo[0] + "' or userUsername = '" + userinfo[0] + "') and userPassword =" + "'" + userinfo[1] + "'";
             SqlCommand sqlCommand = new SqlCommand(query, sqlConnection);
             SqlDataReader sdr = sqlCommand.ExecuteReader();
 
@@ -44,9 +44,13 @@ namespace TheSocialBazNeda.Controllers
                 Thread.CurrentPrincipal = new GenericPrincipal(new GenericIdentity(userinfo[0]), null);
                 UserAuthentication.Username = Thread.CurrentPrincipal.Identity.Name;
                 UserAuthentication.Role = "user";
+                sdr.Close();
+                sqlConnection.Close();
                 return Content(HttpStatusCode.OK, messageDisplay.Message(HttpStatusCode.OK, "The user is logged in successfully!"));
             }
             else {
+                sdr.Close();
+                sqlConnection.Close();
                 return Content(HttpStatusCode.Unauthorized, messageDisplay.Message(HttpStatusCode.Unauthorized, "The user authentiaction failed!"));
             }
         }
@@ -352,6 +356,15 @@ namespace TheSocialBazNeda.Controllers
             sqlCommandInsert.Parameters.AddWithValue("@userMobile", user.userMobile);
             sqlCommandInsert.Parameters.AddWithValue("@userPassword", user.userPassword);
             sqlCommandInsert.Parameters.AddWithValue("@isPersonal", user.isPersonal);
+
+            string queryCheck = "select * from [dbo].[user] usr join [dbo].[bannedUsers] busr on (" + "'" + user.userEmail + "'" + " = busr.email or " + "'" + user.userMobile + "'" + " = busr.mobile)";
+            SqlCommand sqlCommandCheck = new SqlCommand(queryCheck, sqlConnection);
+            SqlDataReader sdrCheck = sqlCommandCheck.ExecuteReader();
+
+            if (sdrCheck.HasRows) {
+                return Content(HttpStatusCode.Forbidden, messageDisplay.Message(HttpStatusCode.Forbidden, "You have been banned from this site!"));
+            }
+            sdrCheck.Close();
 
             if (UserAuthentication.Username == null)
             {
